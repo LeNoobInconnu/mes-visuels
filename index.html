@@ -4,57 +4,208 @@
 <meta charset="UTF-8">
 <title>Galerie de visuels</title>
 <style>
-  body { font-family: sans-serif; background:#1e1e1e; color:#eee; margin:0; padding:20px; }
-  h1 { font-weight:300; }
-  #barre { margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  input, select { padding:6px 10px; border-radius:6px; border:1px solid #444; background:#2a2a2a; color:#eee; }
-  #grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:14px; }
-  .carte { background:#2a2a2a; border-radius:10px; overflow:hidden; cursor:pointer; transition:.15s; }
-  .carte:hover { outline:2px solid #6cf; }
-  .carte img, .carte video { width:100%; height:140px; object-fit:cover; display:block; background:#000; }
-  .nom { font-size:12px; padding:6px 8px; word-break:break-all; opacity:.8; }
-  #compteur, #erreur { opacity:.7; font-size:13px; }
-  #erreur { color:#f77; }
+  :root {
+    --bg: #121214;
+    --panel: #1c1c1f;
+    --panel-2: #232327;
+    --accent: #5ec8ff;
+    --text: #f2f2f3;
+    --text-dim: #9a9aa2;
+    --border: #2c2c31;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0 24px 40px;
+  }
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(18,18,20,0.85);
+    backdrop-filter: blur(10px);
+    padding: 20px 0 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  h1 { font-weight: 600; font-size: 22px; margin: 0 0 14px; letter-spacing: -0.3px; }
+  h2.titre-section { font-size: 15px; font-weight: 600; color: var(--text-dim); margin: 28px 0 12px; text-transform: uppercase; letter-spacing: .5px; }
+  #barre { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input, select {
+    padding: 9px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 14px; outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input { flex: 1; min-width: 180px; }
+  #compteur { color: var(--text-dim); font-size: 13px; white-space: nowrap; }
+  #erreur { color: #ff7a7a; font-size: 13px; margin-bottom: 12px; }
+
+  #grille {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 16px;
+  }
+  .carte {
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    position: relative;
+  }
+  .carte:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+    border-color: var(--accent);
+    z-index: 2;
+  }
+  .miniature-wrap { position: relative; width: 100%; height: 140px; background: #000; overflow: hidden; }
+  .carte img, .carte video { width: 100%; height: 140px; object-fit: cover; display: block; }
+  .icone-generique { height: 140px; display: flex; align-items: center; justify-content: center; font-size: 34px; }
+
+  .overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.75) 100%);
+    opacity: 0; transition: opacity .2s ease;
+    display: flex; align-items: flex-end; justify-content: flex-end; padding: 8px;
+    gap: 6px;
+  }
+  .carte:hover .overlay { opacity: 1; }
+  .bouton-icone {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(4px);
+    border: none; border-radius: 6px;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 15px; cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .bouton-icone:hover { background: var(--accent); color: #10151a; }
+  .bouton-icone:active { transform: scale(0.9); }
+
+  .nom { font-size: 12px; padding: 8px 10px; word-break: break-all; color: var(--text-dim); }
+
+  /* Liste musique */
+  #liste-musique { display: flex; flex-direction: column; gap: 10px; }
+  .ligne-musique {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; transition: border-color .15s, background .15s;
+  }
+  .ligne-musique:hover { border-color: var(--accent); background: var(--panel-2); }
+  .icone-note { font-size: 20px; flex-shrink: 0; }
+  .musique-infos { flex: 1; min-width: 0; }
+  .musique-nom { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .musique-duree { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .musique-lecteur { flex-shrink: 0; }
+  .musique-lecteur audio { height: 32px; max-width: 220px; }
+  .musique-dl { flex-shrink: 0; }
+
+  /* Lightbox */
+  #lightbox {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,10,0.92);
+    backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; flex-direction: column;
+    animation: apparition .15s ease;
+  }
+  @keyframes apparition { from { opacity: 0; } to { opacity: 1; } }
+  #lightbox.actif { display: flex; }
+  #lb-media-zone { max-width: 90vw; max-height: 78vh; display: flex; align-items: center; justify-content: center; }
+  #lb-media-zone img, #lb-media-zone video { max-width: 90vw; max-height: 78vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  #lb-barre { display: flex; align-items: center; gap: 14px; margin-top: 18px; color: var(--text); font-size: 14px; }
+  #lb-nom { color: var(--text-dim); max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-bouton {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; gap: 6px; transition: background .15s, border-color .15s;
+  }
+  .lb-bouton:hover { border-color: var(--accent); }
+  .lb-bouton:disabled { opacity: .5; cursor: default; }
+  #lb-fermer, .lb-nav {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.08); border: none; color: #fff;
+    width: 46px; height: 46px; border-radius: 50%; font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  #lb-fermer { top: 28px; right: 28px; transform: none; }
+  .lb-nav:hover, #lb-fermer:hover { background: var(--accent); color: #10151a; }
+  #lb-prev { left: 24px; } #lb-suivant { right: 24px; }
 </style>
 </head>
 <body>
 
-<h1>Galerie de visuels</h1>
-<div id="barre">
-  <input id="recherche" placeholder="Rechercher un fichier...">
-  <select id="filtre">
-    <option value="tous">Tous les types</option>
-    <option value="image">Images</option>
-    <option value="video">Vidéos</option>
-    <option value="audio">Audio</option>
-  </select>
-  <span id="compteur"></span>
-</div>
+<header>
+  <h1>Galerie de visuels</h1>
+  <div id="barre">
+    <input id="recherche" placeholder="Rechercher un fichier...">
+    <select id="filtre">
+      <option value="tous">Tous les types</option>
+      <option value="image">Images</option>
+      <option value="video">Vidéos</option>
+      <option value="musique">Musique</option>
+      <option value="autre">Autres (psd, ai, zip...)</option>
+    </select>
+    <span id="compteur"></span>
+  </div>
+</header>
+
 <div id="erreur"></div>
+
 <div id="grille"></div>
+
+<div id="section-musique" style="display:none;">
+  <h2 class="titre-section">🎵 Musique</h2>
+  <div id="liste-musique"></div>
+</div>
+
+<div id="lightbox">
+  <button id="lb-fermer">✕</button>
+  <button id="lb-prev" class="lb-nav">‹</button>
+  <button id="lb-suivant" class="lb-nav">›</button>
+  <div id="lb-media-zone"></div>
+  <div id="lb-barre">
+    <span id="lb-nom"></span>
+    <button id="lb-telecharger" class="lb-bouton">⬇ Télécharger</button>
+  </div>
+</div>
 
 <script>
 /* ====== A CONFIGURER ====== */
-const GITHUB_USER   = "LeNoobInconnu";
-const GITHUB_REPO   = "mes-visuels";
-const GITHUB_DOSSIER = "visuels";   // dossier du dépôt qui contient les fichiers
-const GITHUB_BRANCHE = "main";      // ou "master" selon ton dépôt
+const GITHUB_USER    = "LeNoobInconnu";
+const GITHUB_REPO    = "mes-visuels";
+const GITHUB_DOSSIER = "visuels";
+const GITHUB_BRANCHE = "main";
 /* =========================== */
 
-const EXT_IMAGE = ["jpg","jpeg","png","gif","webp","bmp","svg"];
-const EXT_VIDEO = ["mp4","webm","mov","mkv"];
-const EXT_AUDIO = ["mp3","wav","ogg","m4a"];
+const EXT_IMAGE = ["jpg","jpeg","png","gif","webp","bmp","svg","tiff","tif","heic","heif","avif","ico"];
+const EXT_VIDEO = ["mp4","webm","mov","mkv","avi","m4v","wmv","flv","mpg","mpeg","3gp"];
+const EXT_MUSIQUE = ["mp3","wav","ogg","m4a","flac","aac","wma"];
+const EXT_AUTRE = ["psd","ai","eps","indd","xcf","raw","cr2","cr3","nef","arw","dng","zip","rar","7z"];
 
 function typeFichier(nom) {
   const ext = nom.split('.').pop().toLowerCase();
   if (EXT_IMAGE.includes(ext)) return "image";
   if (EXT_VIDEO.includes(ext)) return "video";
-  if (EXT_AUDIO.includes(ext)) return "audio";
+  if (EXT_MUSIQUE.includes(ext)) return "musique";
+  if (EXT_AUTRE.includes(ext)) return "autre";
   return null;
 }
 
+function formaterDuree(secondes) {
+  if (!isFinite(secondes)) return "…";
+  const m = Math.floor(secondes / 60);
+  const s = Math.floor(secondes % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+let itemsGrille = [];
+
 async function charger() {
-  // API "arborescence" : liste TOUS les fichiers du dépôt, y compris dans les sous-dossiers
   const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/git/trees/${GITHUB_BRANCHE}?recursive=1`;
   let data;
   try {
@@ -63,7 +214,7 @@ async function charger() {
     data = await res.json();
   } catch (e) {
     document.getElementById('erreur').textContent =
-      "Impossible de charger la liste des fichiers depuis GitHub (vérifie le nom du dépôt, de la branche et que le dépôt est public).";
+      "Impossible de charger la liste des fichiers depuis GitHub (vérifie le dépôt, la branche, et qu'il est public).";
     return;
   }
 
@@ -71,13 +222,15 @@ async function charger() {
   const fichiers = (data.tree || [])
     .filter(f => f.type === "blob" && f.path.startsWith(prefixe) && typeFichier(f.path))
     .map(f => ({
-      nom: f.path.slice(prefixe.length),   // inclut le sous-dossier dans le nom affiché
+      nom: f.path.slice(prefixe.length),
       type: typeFichier(f.path),
       url: `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCHE}/${f.path}`
     }))
     .sort((a, b) => a.nom.localeCompare(b.nom));
 
   const grille = document.getElementById('grille');
+  const listeMusique = document.getElementById('liste-musique');
+  const sectionMusique = document.getElementById('section-musique');
   const recherche = document.getElementById('recherche');
   const filtre = document.getElementById('filtre');
   const compteur = document.getElementById('compteur');
@@ -85,29 +238,153 @@ async function charger() {
   function afficher() {
     const q = recherche.value.toLowerCase();
     const f = filtre.value;
-    const filtres = fichiers.filter(fi =>
-      fi.nom.toLowerCase().includes(q) && (f === 'tous' || fi.type === f)
+    const correspond = fi => fi.nom.toLowerCase().includes(q);
+
+    // --- Grille (images, vidéos, autres) ---
+    itemsGrille = fichiers.filter(fi =>
+      fi.type !== 'musique' && correspond(fi) && (f === 'tous' || fi.type === f)
     );
-    compteur.textContent = filtres.length + " fichier(s)";
     grille.innerHTML = '';
-    for (const fi of filtres) {
+    itemsGrille.forEach((fi, i) => {
       const carte = document.createElement('div');
       carte.className = 'carte';
       let media = '';
       if (fi.type === 'image') media = `<img src="${fi.url}" loading="lazy">`;
-      else if (fi.type === 'video') media = `<video src="${fi.url}" muted preload="metadata"></video>`;
-      else media = `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:32px;">🎵</div>`;
-      carte.innerHTML = media + `<div class="nom">${fi.nom}</div>`;
-      carte.onclick = () => navigator.clipboard.writeText(fi.url)
-        .then(() => carte.style.outline = '2px solid #6f6');
+      else if (fi.type === 'video') media = `<video src="${fi.url}#t=0.1" muted loop preload="metadata"></video>`;
+      else media = `<div class="icone-generique">📁</div>`;
+
+      carte.innerHTML = `
+        <div class="miniature-wrap">
+          ${media}
+          <div class="overlay">
+            <button class="bouton-icone bouton-dl" title="Télécharger">⬇</button>
+          </div>
+        </div>
+        <div class="nom">${fi.nom}</div>
+      `;
+      if (fi.type === 'video') {
+        const vid = carte.querySelector('video');
+        carte.addEventListener('mouseenter', () => vid.play().catch(()=>{}));
+        carte.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; });
+      }
+      carte.querySelector('.bouton-dl').addEventListener('click', (e) => {
+        e.stopPropagation();
+        telecharger(fi.url, fi.nom, e.currentTarget);
+      });
+      carte.addEventListener('click', () => ouvrirLightbox(i));
       grille.appendChild(carte);
+    });
+
+    // --- Musique (liste dédiée, affichée si filtre = tous ou musique) ---
+    const musiques = fichiers.filter(fi => fi.type === 'musique' && correspond(fi));
+    const afficherMusique = (f === 'tous' || f === 'musique') && musiques.length > 0;
+    sectionMusique.style.display = afficherMusique ? 'block' : 'none';
+    listeMusique.innerHTML = '';
+    if (afficherMusique) {
+      musiques.forEach(fi => {
+        const ligne = document.createElement('div');
+        ligne.className = 'ligne-musique';
+        ligne.innerHTML = `
+          <div class="icone-note">🎵</div>
+          <div class="musique-infos">
+            <div class="musique-nom">${fi.nom}</div>
+            <div class="musique-duree">…</div>
+          </div>
+          <div class="musique-lecteur"><audio src="${fi.url}" controls preload="metadata"></audio></div>
+          <button class="lb-bouton musique-dl">⬇ Télécharger</button>
+        `;
+        const audioEl = ligne.querySelector('audio');
+        const dureeEl = ligne.querySelector('.musique-duree');
+        audioEl.addEventListener('loadedmetadata', () => {
+          dureeEl.textContent = formaterDuree(audioEl.duration);
+        });
+        ligne.querySelector('.musique-dl').addEventListener('click', (e) => {
+          telecharger(fi.url, fi.nom, e.currentTarget);
+        });
+        listeMusique.appendChild(ligne);
+      });
     }
+
+    compteur.textContent = (itemsGrille.length + musiques.length) + " fichier(s)";
   }
 
   recherche.oninput = afficher;
   filtre.onchange = afficher;
   afficher();
 }
+
+/* ---- Téléchargement direct (force le téléchargement même en cross-origin) ---- */
+async function telecharger(url, nom, boutonEl) {
+  const original = boutonEl ? boutonEl.textContent : null;
+  if (boutonEl) { boutonEl.textContent = '…'; boutonEl.disabled = true; }
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const lien = document.createElement('a');
+    const objectUrl = URL.createObjectURL(blob);
+    lien.href = objectUrl;
+    lien.download = nom;
+    document.body.appendChild(lien);
+    lien.click();
+    lien.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+  } catch (e) {
+    window.open(url, '_blank');
+  } finally {
+    if (boutonEl) { boutonEl.textContent = original; boutonEl.disabled = false; }
+  }
+}
+
+/* ---- Lightbox (images / vidéos uniquement) ---- */
+const lightbox = document.getElementById('lightbox');
+const lbZone = document.getElementById('lb-media-zone');
+const lbNom = document.getElementById('lb-nom');
+const lbTelecharger = document.getElementById('lb-telecharger');
+let indexLightbox = -1;
+
+function ouvrirLightbox(i) {
+  indexLightbox = i;
+  const fi = itemsGrille[i];
+  lbZone.innerHTML = '';
+  if (fi.type === 'image') {
+    const img = document.createElement('img');
+    img.src = fi.url;
+    lbZone.appendChild(img);
+  } else if (fi.type === 'video') {
+    const vid = document.createElement('video');
+    vid.src = fi.url; vid.controls = true; vid.autoplay = true;
+    lbZone.appendChild(vid);
+  } else {
+    lbZone.innerHTML = `<div style="font-size:60px;">📁</div>`;
+  }
+  lbNom.textContent = fi.nom;
+  lightbox.classList.add('actif');
+  lbTelecharger.onclick = () => telecharger(fi.url, fi.nom, lbTelecharger);
+}
+
+function fermerLightbox() {
+  lightbox.classList.remove('actif');
+  lbZone.innerHTML = '';
+}
+
+function naviguer(delta) {
+  let n = indexLightbox + delta;
+  if (n < 0) n = itemsGrille.length - 1;
+  if (n >= itemsGrille.length) n = 0;
+  ouvrirLightbox(n);
+}
+
+document.getElementById('lb-fermer').onclick = fermerLightbox;
+document.getElementById('lb-prev').onclick = () => naviguer(-1);
+document.getElementById('lb-suivant').onclick = () => naviguer(1);
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) fermerLightbox(); });
+document.addEventListener('keydown', (e) => {
+  if (!lightbox.classList.contains('actif')) return;
+  if (e.key === 'Escape') fermerLightbox();
+  if (e.key === 'ArrowLeft') naviguer(-1);
+  if (e.key === 'ArrowRight') naviguer(1);
+});
+
 charger();
 </script>
 </body>
