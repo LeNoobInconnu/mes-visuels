@@ -54,7 +54,8 @@ function typeFichier(nom) {
 }
 
 async function charger() {
-  const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_DOSSIER}?ref=${GITHUB_BRANCHE}`;
+  // API "arborescence" : liste TOUS les fichiers du dépôt, y compris dans les sous-dossiers
+  const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/git/trees/${GITHUB_BRANCHE}?recursive=1`;
   let data;
   try {
     const res = await fetch(url);
@@ -62,13 +63,18 @@ async function charger() {
     data = await res.json();
   } catch (e) {
     document.getElementById('erreur').textContent =
-      "Impossible de charger la liste des fichiers depuis GitHub (vérifie le nom du dépôt, du dossier et que le dépôt est public).";
+      "Impossible de charger la liste des fichiers depuis GitHub (vérifie le nom du dépôt, de la branche et que le dépôt est public).";
     return;
   }
 
-  const fichiers = data
-    .filter(f => f.type === "file" && typeFichier(f.name))
-    .map(f => ({ nom: f.name, type: typeFichier(f.name), url: f.download_url }))
+  const prefixe = GITHUB_DOSSIER.replace(/\/$/, "") + "/";
+  const fichiers = (data.tree || [])
+    .filter(f => f.type === "blob" && f.path.startsWith(prefixe) && typeFichier(f.path))
+    .map(f => ({
+      nom: f.path.slice(prefixe.length),   // inclut le sous-dossier dans le nom affiché
+      type: typeFichier(f.path),
+      url: `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCHE}/${f.path}`
+    }))
     .sort((a, b) => a.nom.localeCompare(b.nom));
 
   const grille = document.getElementById('grille');
