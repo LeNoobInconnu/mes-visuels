@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Galerie de visuels</title>
+<style>
+  body { font-family: sans-serif; background:#1e1e1e; color:#eee; margin:0; padding:20px; }
+  h1 { font-weight:300; }
+  #barre { margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  input, select { padding:6px 10px; border-radius:6px; border:1px solid #444; background:#2a2a2a; color:#eee; }
+  #grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:14px; }
+  .carte { background:#2a2a2a; border-radius:10px; overflow:hidden; cursor:pointer; transition:.15s; }
+  .carte:hover { outline:2px solid #6cf; }
+  .carte img, .carte video { width:100%; height:140px; object-fit:cover; display:block; background:#000; }
+  .nom { font-size:12px; padding:6px 8px; word-break:break-all; opacity:.8; }
+  #compteur, #erreur { opacity:.7; font-size:13px; }
+  #erreur { color:#f77; }
+</style>
+</head>
+<body>
+
+<h1>Galerie de visuels</h1>
+<div id="barre">
+  <input id="recherche" placeholder="Rechercher un fichier...">
+  <select id="filtre">
+    <option value="tous">Tous les types</option>
+    <option value="image">Images</option>
+    <option value="video">Vidéos</option>
+    <option value="audio">Audio</option>
+  </select>
+  <span id="compteur"></span>
+</div>
+<div id="erreur"></div>
+<div id="grille"></div>
+
+<script>
+/* ====== A CONFIGURER ====== */
+const GITHUB_USER   = "TON-PSEUDO-GITHUB";
+const GITHUB_REPO   = "TON-DEPOT";
+const GITHUB_DOSSIER = "visuels";   // dossier du dépôt qui contient les fichiers
+const GITHUB_BRANCHE = "main";      // ou "master" selon ton dépôt
+/* =========================== */
+
+const EXT_IMAGE = ["jpg","jpeg","png","gif","webp","bmp","svg"];
+const EXT_VIDEO = ["mp4","webm","mov","mkv"];
+const EXT_AUDIO = ["mp3","wav","ogg","m4a"];
+
+function typeFichier(nom) {
+  const ext = nom.split('.').pop().toLowerCase();
+  if (EXT_IMAGE.includes(ext)) return "image";
+  if (EXT_VIDEO.includes(ext)) return "video";
+  if (EXT_AUDIO.includes(ext)) return "audio";
+  return null;
+}
+
+async function charger() {
+  const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_DOSSIER}?ref=${GITHUB_BRANCHE}`;
+  let data;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+  } catch (e) {
+    document.getElementById('erreur').textContent =
+      "Impossible de charger la liste des fichiers depuis GitHub (vérifie le nom du dépôt, du dossier et que le dépôt est public).";
+    return;
+  }
+
+  const fichiers = data
+    .filter(f => f.type === "file" && typeFichier(f.name))
+    .map(f => ({ nom: f.name, type: typeFichier(f.name), url: f.download_url }))
+    .sort((a, b) => a.nom.localeCompare(b.nom));
+
+  const grille = document.getElementById('grille');
+  const recherche = document.getElementById('recherche');
+  const filtre = document.getElementById('filtre');
+  const compteur = document.getElementById('compteur');
+
+  function afficher() {
+    const q = recherche.value.toLowerCase();
+    const f = filtre.value;
+    const filtres = fichiers.filter(fi =>
+      fi.nom.toLowerCase().includes(q) && (f === 'tous' || fi.type === f)
+    );
+    compteur.textContent = filtres.length + " fichier(s)";
+    grille.innerHTML = '';
+    for (const fi of filtres) {
+      const carte = document.createElement('div');
+      carte.className = 'carte';
+      let media = '';
+      if (fi.type === 'image') media = `<img src="${fi.url}" loading="lazy">`;
+      else if (fi.type === 'video') media = `<video src="${fi.url}" muted preload="metadata"></video>`;
+      else media = `<div style="height:140px;display:flex;align-items:center;justify-content:center;font-size:32px;">🎵</div>`;
+      carte.innerHTML = media + `<div class="nom">${fi.nom}</div>`;
+      carte.onclick = () => navigator.clipboard.writeText(fi.url)
+        .then(() => carte.style.outline = '2px solid #6f6');
+      grille.appendChild(carte);
+    }
+  }
+
+  recherche.oninput = afficher;
+  filtre.onchange = afficher;
+  afficher();
+}
+charger();
+</script>
+</body>
+</html>
